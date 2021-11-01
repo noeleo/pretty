@@ -31,6 +31,8 @@ import (
 	"github.com/fatih/color"
 )
 
+const newline = "\n"
+
 // Table creates formatted tables for human readability.
 type Table struct {
 	header              *string
@@ -204,26 +206,26 @@ func (table *Table) PrettyString() (string, error) {
 		upperBorder = upperBorder +
 			strings.Repeat("-", headerLength-len(upperBorder))
 	}
-	buffer.WriteString(upperBorder + "\n")
-	border += "\n"
+	buffer.WriteString(upperBorder + newline)
+	border += newline
 
 	// Write the column headers
-	err := renderRow(&buffer, columnSizes, columnNames, columnColors, leftJustify)
+	err := renderTableRow(&buffer, columnSizes, columnNames, columnColors, leftJustify)
 	if err != nil {
 		return "", err
 	}
-	buffer.WriteString("\n")
+	buffer.WriteString(newline)
 
 	// Write another border between columns and data rows.
 	buffer.WriteString(border)
 
 	// Write the content rows
 	for _, row := range table.rows {
-		err = renderRow(&buffer, columnSizes, row, rowColors, rightJustify)
+		err = renderTableRow(&buffer, columnSizes, row, rowColors, rightJustify)
 		if err != nil {
 			return "", err
 		}
-		buffer.WriteString("\n")
+		buffer.WriteString(newline)
 	}
 
 	// Write the last border.
@@ -232,7 +234,7 @@ func (table *Table) PrettyString() (string, error) {
 	// Write row count, if needed.
 	if table.shouldPrintRowCount {
 		buffer.WriteString(
-			fmt.Sprintf("Count: %d\n", len(table.rows)))
+			fmt.Sprintf("Count: %d" + newline, len(table.rows)))
 	}
 
 	// Pretty print!
@@ -260,7 +262,49 @@ func (table *Table) validateRowSize(row []string) error {
 	return nil
 }
 
-func renderRow(
+func renderTableRow(
+	buffer *bytes.Buffer,
+	columnSizes []int,
+	contents []string,
+	colors []color.Attribute,
+	justification alignment,
+) error {
+	numColumns := len(contents)
+	// Split the table row into multiple literal rows by newline.
+	numRows := 0
+	for _, content := range contents {
+		litRows := len(strings.Split(content, newline))
+		if litRows > numRows {
+			numRows = litRows
+		}
+	}
+	matrix := make([]string, numRows*numColumns)
+	for i, content := range contents {
+		litRows := strings.Split(content, newline)
+		for j, litRow := range litRows {
+			matrix[j*numColumns+i] = litRow
+		}
+	}
+
+	for rowI := 0; rowI < numRows; rowI++ {
+		startI := rowI*numColumns
+		err := renderLiteralRow(
+			buffer,
+			columnSizes,
+			matrix[startI:startI+numColumns],
+			colors,
+			justification)
+		if err != nil {
+			return err
+		}
+		if rowI < numRows -1 {
+			buffer.WriteString(newline)
+		}
+	}
+	return nil
+}
+
+func renderLiteralRow(
 	buffer *bytes.Buffer,
 	columnSizes []int,
 	contents []string,
@@ -316,7 +360,7 @@ func renderCell(
 func renderHeader(header string) (string, int) {
 	horizontalBorder := strings.Repeat("-", strLengthWithEncoding(header)+2)
 	rendered := fmt.Sprintf(
-		"%s\n %s |\n",
+		"%s" + newline + " %s |" + newline,
 		horizontalBorder,
 		header)
 
@@ -324,13 +368,20 @@ func renderHeader(header string) (string, int) {
 }
 
 func strLengthWithEncoding(str string) int {
-	length := 0
-	for _, strRune := range str {
-		if shouldCountEncodedRune(strRune) {
-			length++
+	maxLength := 0
+	horizontals := strings.Split(str, newline)
+	for _, horizontal := range horizontals {
+		length := 0
+		for _, strRune := range horizontal {
+			if shouldCountEncodedRune(strRune) {
+				length++
+			}
+		}
+		if length > maxLength {
+			maxLength = length
 		}
 	}
-	return length
+	return maxLength
 }
 
 func truncateStringWithEncoding(str string, truncateLength int) string {

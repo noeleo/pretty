@@ -150,6 +150,23 @@ func TestColumnWidthLimitErrorWithLongColumnName(t *testing.T) {
 	assert.Nil(t, table)
 }
 
+func TestRowsWithNewlines(t *testing.T) {
+	table, err := NewPrettyTable(
+		NewColumnDef("Mother"),
+		NewColumnDef("Children"))
+	assert.Nil(t, err)
+
+	err = table.AddRow("Maria", "Steve\nBob\nMilton")
+	assert.Nil(t, err)
+	err = table.AddRow("Lucy", "Emily")
+	assert.Nil(t, err)
+	err = table.AddRow("Vesna", "Lily\nBartholomew\nSophie")
+	assert.Nil(t, err)
+
+	table.Print()
+	assertExpectedTable(t, table, "table_with_newlines.txt")
+}
+
 func createBasicTable(t *testing.T) *Table {
 	table, err := NewPrettyTable(
 		NewColumnDef("Employee Number"),
