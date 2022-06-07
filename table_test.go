@@ -72,6 +72,15 @@ func TestTableWithSlightlyLongHeader(t *testing.T) {
 	assertExpectedTable(t, table, "table_with_slightly_long_header.txt")
 }
 
+func TestTableWithNewlineHeader(t *testing.T) {
+	// Test the formatting of a table where the header is only 1 character
+	// longer than the width of the table.
+	table := createBasicTable(t)
+	table.SetHeader("This is a\nnewlined header")
+
+	assertExpectedTable(t, table, "table_with_newline_header.txt")
+}
+
 func TestTableWithSpecialCharacters(t *testing.T) {
 	table, err := NewPrettyTable(
 		NewColumnDef("Name"),
@@ -193,6 +202,9 @@ func assertExpectedTable(
 	filename string,
 ) {
 	strOut, err := table.PrettyString()
+	assert.Nil(t, err)
+
+	err = table.Print()
 	assert.Nil(t, err)
 
 	filepath := path.Join("test", filename)

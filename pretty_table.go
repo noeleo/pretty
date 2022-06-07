@@ -31,7 +31,11 @@ import (
 	"github.com/fatih/color"
 )
 
+const space = " "
 const newline = "\n"
+const hLine = "-"
+const vLine = "|"
+const corner = "+"
 
 // Table creates formatted tables for human readability.
 type Table struct {
@@ -196,15 +200,15 @@ func (table *Table) PrettyString() (string, error) {
 	headerLineStrings := make([]string, len(columnSizes))
 	for i := range columnSizes {
 		// Add 2 for the single space at beginning and end of cell
-		headerLineStrings[i] = strings.Repeat("-", columnSizes[i]+2)
+		headerLineStrings[i] = strings.Repeat(hLine, columnSizes[i]+2)
 	}
-	border := "+" + strings.Join(headerLineStrings, "+") + "+"
+	border := corner + strings.Join(headerLineStrings, corner) + corner
 
 	// Extend upper border if the header is longer than the width of table.
 	upperBorder := border
 	if headerLength > len(upperBorder) {
 		upperBorder = upperBorder +
-			strings.Repeat("-", headerLength-len(upperBorder))
+			strings.Repeat(hLine, headerLength-len(upperBorder))
 	}
 	buffer.WriteString(upperBorder + newline)
 	border += newline
@@ -234,7 +238,7 @@ func (table *Table) PrettyString() (string, error) {
 	// Write row count, if needed.
 	if table.shouldPrintRowCount {
 		buffer.WriteString(
-			fmt.Sprintf("Count: %d" + newline, len(table.rows)))
+			fmt.Sprintf("Count: %d"+newline, len(table.rows)))
 	}
 
 	// Pretty print!
@@ -287,7 +291,7 @@ func renderTableRow(
 	}
 
 	for rowI := 0; rowI < numRows; rowI++ {
-		startI := rowI*numColumns
+		startI := rowI * numColumns
 		err := renderLiteralRow(
 			buffer,
 			columnSizes,
@@ -297,7 +301,7 @@ func renderTableRow(
 		if err != nil {
 			return err
 		}
-		if rowI < numRows -1 {
+		if rowI < numRows-1 {
 			buffer.WriteString(newline)
 		}
 	}
@@ -313,18 +317,14 @@ func renderLiteralRow(
 ) error {
 	contentStrings := make([]string, len(contents))
 	for i := range contents {
-		cell, err := renderCell(
+		contentStrings[i] = renderCell(
 			contents[i],
 			columnSizes[i],
 			justification,
 			colors[i%len(colors)])
-		if err != nil {
-			return err
-		}
-		contentStrings[i] = cell
 	}
 	_, err := buffer.WriteString(
-		"|" + strings.Join(contentStrings, "|") + "|")
+		vLine + strings.Join(contentStrings, vLine) + vLine)
 	return err
 }
 
@@ -333,7 +333,7 @@ func renderCell(
 	cellLength int,
 	justification alignment,
 	textAttribute color.Attribute,
-) (string, error) {
+) string {
 	truncatedContent := content
 	if strLengthWithEncoding(content) > cellLength {
 		truncatedContent = fmt.Sprintf(
@@ -342,29 +342,35 @@ func renderCell(
 	}
 
 	paddingLength := cellLength - strLengthWithEncoding(truncatedContent)
-	padding := strings.Repeat(" ", paddingLength)
+	padding := strings.Repeat(space, paddingLength)
 
 	textColor := color.New(textAttribute, color.Bold)
 	switch justification {
 	case leftJustify:
-		return textColor.Sprintf(" %s%s ", truncatedContent, padding), nil
+		return textColor.Sprintf(" %s%s ", truncatedContent, padding)
 	case rightJustify:
-		return textColor.Sprintf(" %s%s ", padding, truncatedContent),
-			nil
+		fallthrough
 	default:
-		return "", fmt.Errorf("did not match alignment")
+		return textColor.Sprintf(" %s%s ", padding, truncatedContent)
 	}
 }
 
 // renderHeader renders the header, as well as returns its horizontal length.
 func renderHeader(header string) (string, int) {
-	horizontalBorder := strings.Repeat("-", strLengthWithEncoding(header)+2)
-	rendered := fmt.Sprintf(
-		"%s" + newline + " %s |" + newline,
-		horizontalBorder,
-		header)
+	headerBuffer := strings.Builder{}
 
-	return rendered, strLengthWithEncoding(horizontalBorder)
+	maxRowLength := strLengthWithEncoding(header)
+	// Add a space before and after, do not use a corner.
+	horizontalBorder := strings.Repeat(hLine, maxRowLength+2)
+	headerBuffer.WriteString(horizontalBorder + newline)
+
+	lines := strings.Split(header, newline)
+	for _, line := range lines {
+		cell := renderCell(line, maxRowLength, leftJustify, color.BgBlack)
+		headerBuffer.WriteString(cell + vLine + newline)
+	}
+
+	return headerBuffer.String(), len(horizontalBorder)
 }
 
 func strLengthWithEncoding(str string) int {
