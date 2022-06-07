@@ -3,7 +3,7 @@
 
 build: format
 	export GO111MODULE=on
-	env GOOS=linux go build -ldflags="-s -w" -o ../bin/pretty_table pretty_table.go
+	env GOOS=linux go build -ldflags="-s -w" -o bin/pretty_table pretty_table.go
 
 clean:
 	rm -rf ./bin ./vendor Gopkg.lock
